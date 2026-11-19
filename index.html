@@ -1,103 +1,86 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#070d12">
-  <title>ECOS DE VÉSPERA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#080d16">
+  <title>PROJECT: ECHO</title>
   <link rel="stylesheet" href="style.css">
-
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
-    }
-  }
-  </script>
 </head>
 <body>
-<div id="game">
-
-  <div id="loading" class="screen">
-    <div class="eyebrow">ARQUIVO DE CAMPO // 01:47</div>
-    <h1>ECOS DE<br><span>VÉSPERA</span></h1>
-    <p>Há lugares que não esquecem.</p>
-    <div class="load-track"><i id="loadBar"></i></div>
-    <small id="loadText">PREPARANDO A EXPEDIÇÃO...</small>
-  </div>
-
-  <div id="menu" class="screen hidden">
-    <div class="menu-copy">
-      <div class="eyebrow">UMA EXPERIÊNCIA DE TERROR E EXPLORAÇÃO</div>
-      <h1>ECOS DE<br><span>VÉSPERA</span></h1>
-      <p class="subtitle">
-        A ilha lembra de tudo. Inclusive do que você tentou esquecer.
-      </p>
-      <button id="startBtn" class="primary">
-        INICIAR EXPEDIÇÃO <b>↗</b>
-      </button>
-      <div class="menu-note">
-        Fones de ouvido recomendados · Salvamento automático
+  <div id="game-shell">
+    <header id="topbar">
+      <div class="brand">
+        <span class="brand-mark">E</span>
+        <div>
+          <strong>PROJECT: ECHO</strong>
+          <small>THE FORGOTTEN FACILITY</small>
+        </div>
       </div>
-    </div>
-    <div class="menu-footer">RELATÓRIO 07-B / ESTAÇÃO VÉSPERA</div>
-  </div>
-
-  <div id="hud" class="hidden">
-    <div class="topline">
-      <span>VÉSPERA</span>
-      <span id="chapter">PRÓLOGO — A CHEGADA</span>
-    </div>
-
-    <div class="objective">
-      <small>OBJETIVO ATUAL</small>
-      <strong id="objectiveText">Encontre um caminho até a estação.</strong>
-    </div>
-
-    <div class="crosshair"><i></i><b></b></div>
-
-    <div class="bottom-left">
-      <div class="status-label">
-        LANTERNA <span id="batteryText">100%</span>
+      <div class="level-info">
+        <span>CHAPTER 01</span>
+        <span id="objective">Encontre a saída</span>
       </div>
-      <div class="battery"><i id="batteryBar"></i></div>
-      <div id="hint">
-        WASD mover · SHIFT correr · E interagir · F lanterna
+      <button id="pause-button">Ⅱ</button>
+    </header>
+
+    <main id="game-container">
+      <canvas id="game" aria-label="Jogo de plataforma PROJECT ECHO"></canvas>
+
+      <div id="intro-screen" class="overlay">
+        <div class="intro-content">
+          <span class="eyebrow">A JOURNEY THROUGH THE UNKNOWN</span>
+          <h1>PROJECT<br><span>ECHO</span></h1>
+          <p>Nem toda porta foi feita para ser aberta.</p>
+          <button id="start-button">INICIAR EXPERIÊNCIA <span>→</span></button>
+          <small>WASD / SETAS PARA MOVIMENTAR</small>
+        </div>
       </div>
-    </div>
 
-    <div id="message" class="message"></div>
-    <div id="interaction" class="interaction hidden">[ E ] INTERAGIR</div>
-    <div id="documentToast" class="document-toast hidden"></div>
+      <div id="pause-screen" class="overlay hidden">
+        <div class="menu-card">
+          <span class="eyebrow">SYSTEM PAUSED</span>
+          <h2>PAUSADO</h2>
+          <button id="resume-button">CONTINUAR</button>
+          <button id="restart-button">REINICIAR FASE</button>
+        </div>
+      </div>
+
+      <div id="win-screen" class="overlay hidden">
+        <div class="menu-card">
+          <span class="eyebrow">MISSION COMPLETE</span>
+          <h2>VOCÊ CONSEGUIU.</h2>
+          <p>A instalação não guarda mais seus segredos.</p>
+          <button id="again-button">JOGAR NOVAMENTE</button>
+        </div>
+      </div>
+
+      <div id="hud">
+        <div class="hud-chip">
+          <span class="status-dot"></span>
+          <span id="hud-status">EXPLORANDO</span>
+        </div>
+        <div class="hud-chip">CHECKPOINT <span id="checkpoint-number">01</span></div>
+      </div>
+
+      <div id="touch-controls">
+        <div class="touch-left">
+          <button data-control="left">←</button>
+          <button data-control="right">→</button>
+        </div>
+        <div class="touch-right">
+          <button data-control="slide">↓</button>
+          <button data-control="jump">↑</button>
+          <button data-control="interact">E</button>
+        </div>
+      </div>
+    </main>
+    <footer>
+      <span>PROJECT: ECHO © 2026</span>
+      <span>BUILD 0.1.0 · EXPERIMENTAL</span>
+    </footer>
   </div>
-
-  <div id="pause" class="screen hidden">
-    <div class="eyebrow">SINAL INTERROMPIDO</div>
-    <h2>PAUSADO</h2>
-    <button id="resumeBtn" class="primary">CONTINUAR</button>
-    <button id="restartBtn" class="secondary">RECOMEÇAR</button>
-    <p>ESC para voltar ao jogo</p>
-  </div>
-
-  <div id="ending" class="screen hidden">
-    <div class="eyebrow">TRANSMISSÃO FINALIZADA</div>
-    <h2 id="endingTitle">O ÚLTIMO ECO</h2>
-    <p id="endingText"></p>
-    <button id="againBtn" class="primary">JOGAR NOVAMENTE</button>
-  </div>
-
-  <div id="mobileControls" class="hidden">
-    <div id="joystick"><div id="stick"></div></div>
-    <div id="lookZone"></div>
-    <button id="runTouch" class="touchButton">CORRER</button>
-    <button id="interactTouch" class="touchButton">E</button>
-    <button id="flashTouch" class="touchButton">☼</button>
-  </div>
-
-</div>
-
-<script type="module" src="script.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
 
