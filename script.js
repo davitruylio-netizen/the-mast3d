@@ -1,1143 +1,1008 @@
 
-import * as THREE from 'three';
+"use strict";
+
+// ==========================================
+// PROJECT: ECHO — GAME ENGINE 0.1
+// ==========================================
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const W = 1280;
+const H = 720;
+
+canvas.width = W;
+canvas.height = H;
 
 const $ = id => document.getElementById(id);
 
 const ui = {
-  loading: $('loading'),
-  loadBar: $('loadBar'),
-  loadText: $('loadText'),
-  menu: $('menu'),
-  hud: $('hud'),
-  pause: $('pause'),
-  ending: $('ending'),
-  objective: $('objectiveText'),
-  chapter: $('chapter'),
-  battery: $('batteryBar'),
-  batteryText: $('batteryText'),
-  message: $('message'),
-  interaction: $('interaction'),
-  toast: $('documentToast'),
-  mobile: $('mobileControls')
+  intro: $("intro-screen"),
+  pause: $("pause-screen"),
+  win: $("win-screen"),
+  start: $("start-button"),
+  pauseButton: $("pause-button"),
+  resume: $("resume-button"),
+  restart: $("restart-button"),
+  again: $("again-button"),
+  objective: $("objective"),
+  status: $("hud-status"),
+  checkpoint: $("checkpoint-number")
 };
 
-let scene, camera, renderer, clock;
-let player, flashlight, enemy, water;
-let started = false;
-let paused = false;
-let ended = false;
-let flashOn = true;
-let battery = 100;
-let yaw = 0;
-let pitch = 0;
-let velocityY = 0;
-let keys = {};
-let interactables = [];
-let collected = new Set();
-let repeaters = 0;
-let records = 0;
-let objectiveIndex = 0;
-let messageTimer = 0;
-let enemyState = 'hidden';
-let enemyTimer = 0;
-let enemyAlert = 0;
-let mobileMove = {x:0,y:0};
-let lookTouch = null;
-let lastLook = {x:0,y:0};
-let runningTouch = false;
+// ==========================================
+// GAME STATE
+// ==========================================
 
-const isMobile = matchMedia('(pointer:coarse)').matches;
+let game = {
+  running: false,
+  paused: false,
+  won: false,
+  time: 0,
+  camera: 0,
+  shake: 0,
+  checkpoint: 0,
+  particles: [],
+  lights: [],
+  lastTime: 0
+};
 
-const objectives = [
-  'Encontre um caminho até a estação.',
-  'Procure os registros da pesquisadora.',
-  'Ative os três repetidores de sinal.',
-  'Encontre a chave do farol.',
-  'Suba até a sala de transmissão.'
-];
+const input = {
+  left: false,
+  right: false,
+  jump: false,
+  slide: false,
+  interact: false,
+  jumpPressed: false,
+  interactPressed: false
+};
 
-function setObjective(index) {
-  objectiveIndex = index;
-  ui.objective.textContent = objectives[index] || 'Descubra o que a ilha esconde.';
+const world = {
+  width: 2850,
+  gravity: 2100,
+  platforms: [
+    {x:0, y:630, w:570, h:100},
+    {x:650, y:630, w:360, h:100},
+    {x:1110, y:630, w:430, h:100},
+    {x:1650, y:630, w:420, h:100},
+    {x:2180, y:630, w:670, h:100},
 
-  ui.chapter.textContent =
-    index < 1 ? 'PRÓLOGO — A CHEGADA' :
-    index < 2 ? 'CAPÍTULO I — SINAIS' :
-    'CAPÍTULO II — MEMÓRIA RESIDUAL';
+    {x:290, y:495, w:150, h:18},
+    {x:500, y:410, w:130, h:18},
+    {x:760, y:500, w:140, h:18},
+    {x:1040, y:440, w:120, h:18},
+    {x:1300, y:500, w:170, h:18},
+    {x:1750, y:470, w:150, h:18},
+    {x:1980, y:385, w:140, h:18},
+    {x:2340, y:490, w:150, h:18}
+  ],
+  walls: [
+    {x:620, y:490, w:25, h:140},
+    {x:1540, y:410, w:25, h:220},
+    {x:2110, y:400, w:30, h:230}
+  ],
+  crate: {
+    x:850, y:570, w:55, h:60,
+    vx:0, weight:1
+  },
+  plate: {
+    x:980, y:614, w:75, h:16,
+    pressed:false
+  },
+  door: {
+    x:1110, y:420, w:35, h:210,
+    open:false
+  },
+  checkpoint: {
+    x:1690, y:570, active:false
+  },
+  exit: {
+    x:2700, y:500, w:55, h:130
+  }
+};
+
+// ==========================================
+// PLAYER
+// ==========================================
+
+const spawn = {x:100, y:550};
+
+const player = {
+  x:spawn.x,
+  y:spawn.y,
+  w:35,
+  h:78,
+  vx:0,
+  vy:0,
+  facing:1,
+  grounded:false,
+  wallSide:0,
+  coyote:0,
+  jumpBuffer:0,
+  jumps:0,
+  maxJumps:2,
+  sliding:false,
+  climbing:false,
+  rolling:0,
+  speed:370,
+  state:"idle",
+  animation:0,
+  trail:[],
+  invulnerable:0
+};
+
+// ==========================================
+// LEVEL RESET
+// ==========================================
+
+function resetGame() {
+  player.x = spawn.x;
+  player.y = spawn.y;
+  player.vx = 0;
+  player.vy = 0;
+  player.grounded = false;
+  player.jumps = 0;
+  player.state = "idle";
+  player.animation = 0;
+  player.trail = [];
+
+  world.crate.x = 850;
+  world.crate.y = 570;
+  world.crate.vx = 0;
+
+  world.plate.pressed = false;
+  world.door.open = false;
+  world.checkpoint.active = false;
+
+  game.checkpoint = 0;
+  game.camera = 0;
+  game.won = false;
+  game.particles = [];
+
+  ui.checkpoint.textContent = "01";
+  ui.objective.textContent = "Encontre a saída";
+  ui.status.textContent = "EXPLORANDO";
 }
 
-function say(text, duration = 3500) {
-  ui.message.textContent = text;
-  ui.message.classList.add('show');
-  messageTimer = duration / 1000;
+// ==========================================
+// INPUT
+// ==========================================
+
+function setControl(name, value) {
+  if (value && !input[name]) {
+    if (name === "jump") input.jumpPressed = true;
+    if (name === "interact") input.interactPressed = true;
+  }
+  input[name] = value;
 }
 
-function toast(title, text) {
-  ui.toast.innerHTML = `<strong>${title}</strong><br>${text}`;
-  ui.toast.classList.remove('hidden');
+window.addEventListener("keydown", e => {
+  const key = e.key.toLowerCase();
 
-  setTimeout(() => ui.toast.classList.add('hidden'), 6000);
-}
-
-function mat(color, roughness = 1, metalness = 0) {
-  return new THREE.MeshStandardMaterial({
-    color,
-    roughness,
-    metalness
-  });
-}
-
-function addMesh(geometry, material, x, y, z, parent = scene) {
-  const mesh = new THREE.Mesh(geometry, material);
-
-  mesh.position.set(x, y, z);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-
-  parent.add(mesh);
-
-  return mesh;
-}
-
-function addBox(x,y,z,sx,sy,sz,material) {
-  return addMesh(
-    new THREE.BoxGeometry(sx,sy,sz),
-    material,
-    x,y,z
-  );
-}
-
-function addTree(x,z,scale=1) {
-  addMesh(
-    new THREE.CylinderGeometry(.18*scale,.28*scale,2.8*scale,7),
-    mat(0x302b25),
-    x,1.4*scale,z
-  );
-
-  const crown = addMesh(
-    new THREE.ConeGeometry(1.55*scale,4.2*scale,7),
-    mat(0x142b2a),
-    x,4*scale,z
-  );
-
-  crown.rotation.y = Math.random()*6.28;
-}
-
-function addRock(x,z,size=1) {
-  const rock = addMesh(
-    new THREE.DodecahedronGeometry(size,0),
-    mat(0x303c3d),
-    x,size*.55,z
-  );
-
-  rock.scale.set(1.3,.8,1);
-  rock.rotation.set(Math.random(),Math.random(),Math.random());
-}
-
-function addLight(x,y,z,color,intensity,distance) {
-  const light = new THREE.PointLight(color,intensity,distance);
-  light.position.set(x,y,z);
-  scene.add(light);
-  return light;
-}
-
-function addInteractable(mesh,label,action) {
-  interactables.push({
-    mesh,
-    label,
-    action
-  });
-}
-
-function buildWorld() {
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x0a171d);
-  scene.fog = new THREE.FogExp2(0x14272b,.018);
-
-  camera = new THREE.PerspectiveCamera(
-    74,
-    innerWidth/innerHeight,
-    .08,
-    220
-  );
-
-  renderer = new THREE.WebGLRenderer({
-    antialias: !isMobile,
-    powerPreference: 'high-performance'
-  });
-
-  renderer.setPixelRatio(
-    Math.min(devicePixelRatio,isMobile?1.35:1.8)
-  );
-
-  renderer.setSize(innerWidth,innerHeight);
-  renderer.shadowMap.enabled = !isMobile;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
-
-  $('game').prepend(renderer.domElement);
-
-  clock = new THREE.Clock();
-
-  const hemi = new THREE.HemisphereLight(
-    0x9bbec4,
-    0x17201c,
-    1.05
-  );
-
-  scene.add(hemi);
-
-  const moon = new THREE.DirectionalLight(0x9bbdc5,1.35);
-  moon.position.set(-35,55,-20);
-  moon.castShadow = !isMobile;
-  moon.shadow.mapSize.set(1024,1024);
-  scene.add(moon);
-
-  // Terreno
-  const ground = addMesh(
-    new THREE.PlaneGeometry(180,180),
-    mat(0x263b36),
-    0,-.16,0
-  );
-
-  ground.rotation.x = -Math.PI/2;
-
-  const beach = addMesh(
-    new THREE.PlaneGeometry(180,30),
-    mat(0x4a4b3e),
-    0,-.12,24
-  );
-
-  beach.rotation.x = -Math.PI/2;
-
-  // Oceano
-  const oceanGeometry = new THREE.PlaneGeometry(260,260,60,60);
-  const positions = oceanGeometry.attributes.position;
-
-  for(let i=0;i<positions.count;i++) {
-    const x = positions.getX(i);
-    const y = positions.getY(i);
-
-    positions.setZ(
-      i,
-      Math.sin(x*.11+y*.08)*.11 +
-      Math.cos(y*.16)*.07
-    );
+  if (["arrowleft","arrowright","arrowup","arrowdown"," "].includes(key)) {
+    e.preventDefault();
   }
 
-  oceanGeometry.computeVertexNormals();
+  if (key === "a" || key === "arrowleft") setControl("left", true);
+  if (key === "d" || key === "arrowright") setControl("right", true);
+  if (key === "w" || key === "arrowup" || key === " ") setControl("jump", true);
+  if (key === "s" || key === "arrowdown") setControl("slide", true);
+  if (key === "e") setControl("interact", true);
 
-  water = addMesh(
-    oceanGeometry,
-    new THREE.MeshStandardMaterial({
-      color:0x102d36,
-      roughness:.28,
-      metalness:.25,
-      transparent:true,
-      opacity:.92
-    }),
-    0,-.32,55
-  );
+  if (key === "escape") togglePause();
+});
 
-  water.rotation.x = -Math.PI/2;
+window.addEventListener("keyup", e => {
+  const key = e.key.toLowerCase();
 
-  // Floresta
-  for(let i=0;i<65;i++) {
-    const angle = Math.random()*Math.PI*2;
-    const radius = 25+Math.random()*43;
+  if (key === "a" || key === "arrowleft") setControl("left", false);
+  if (key === "d" || key === "arrowright") setControl("right", false);
+  if (key === "w" || key === "arrowup" || key === " ") setControl("jump", false);
+  if (key === "s" || key === "arrowdown") setControl("slide", false);
+  if (key === "e") setControl("interact", false);
+});
 
-    const x = Math.cos(angle)*radius;
-    const z = Math.sin(angle)*radius-10;
+document.querySelectorAll("[data-control]").forEach(button => {
+  const name = button.dataset.control;
 
-    if(z>16) continue;
+  button.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    button.setPointerCapture(e.pointerId);
+    setControl(name, true);
+  });
 
-    addTree(x,z,.75+Math.random()*.85);
+  const release = e => {
+    e.preventDefault();
+    setControl(name, false);
+  };
+
+  button.addEventListener("pointerup", release);
+  button.addEventListener("pointercancel", release);
+  button.addEventListener("lostpointercapture", () => {
+    setControl(name, false);
+  });
+});
+
+// ==========================================
+// COLLISION SYSTEM
+// ==========================================
+
+function overlap(a,b) {
+  return a.x < b.x+b.w &&
+    a.x+a.w > b.x &&
+    a.y < b.y+b.h &&
+    a.y+a.h > b.y;
+}
+
+function getSolids() {
+  const solids = [...world.platforms, ...world.walls];
+
+  if (!world.door.open) {
+    solids.push(world.door);
   }
 
-  for(let x=-35;x<=35;x+=5) {
-    for(let z=-35;z<=4;z+=5) {
-      if(Math.random()>.25 && Math.hypot(x,z+8)>12) {
-        addTree(
-          x+(Math.random()-.5)*2,
-          z+(Math.random()-.5)*2,
-          .8+Math.random()*.55
-        );
-      }
+  return solids;
+}
+
+function movePlayer(dt) {
+  player.x += player.vx * dt;
+
+  for (const block of getSolids()) {
+    if (!overlap(player,block)) continue;
+
+    if (player.vx > 0) {
+      player.x = block.x-player.w;
+      player.wallSide = 1;
+    } else if (player.vx < 0) {
+      player.x = block.x+block.w;
+      player.wallSide = -1;
+    }
+
+    player.vx = 0;
+  }
+
+  player.y += player.vy * dt;
+  player.grounded = false;
+
+  for (const block of getSolids()) {
+    if (!overlap(player,block)) continue;
+
+    if (player.vy > 0) {
+      player.y = block.y-player.h;
+      player.vy = 0;
+      player.grounded = true;
+      player.jumps = 0;
+    } else if (player.vy < 0) {
+      player.y = block.y+block.h;
+      player.vy = 0;
     }
   }
 
-  for(let i=0;i<32;i++) {
-    const x = (Math.random()-.5)*105;
-    const z = (Math.random()-.5)*95-8;
-
-    if(z<20) addRock(x,z,.5+Math.random()*1.5);
-  }
-
-  // Estação científica
-  const concrete = mat(0x4b5550);
-  const dark = mat(0x182629);
-  const metal = mat(0x374b4d,.65,.5);
-
-  addBox(0,2,-29,18,4,12,concrete);
-  addBox(0,4.1,-29,19,.35,13,dark);
-
-  addBox(-5,2.1,-22.85,3,2.6,.12,mat(0x101b20));
-  addBox(4,2.1,-22.85,3,2.6,.12,mat(0x101b20));
-
-  for(let x=-7;x<=7;x+=3.5) {
-    const windowMesh = addBox(
-      x,2.5,-22.78,
-      2.2,1.25,.08,
-      mat(0x233b40)
-    );
-
-    windowMesh.material.emissive = new THREE.Color(0x0b2024);
-  }
-
-  addBox(0,1.25,-22.8,2.1,2.5,.2,metal);
-
-  for(let i=0;i<5;i++) {
-    addBox(0,.18+i*.22,-20.5+i*.55,4,.22,.9,concrete);
-  }
-
-  // Antena
-  addMesh(
-    new THREE.CylinderGeometry(.12,.2,17,8),
-    metal,
-    14,8.5,-36
-  );
-
-  for(let y=4;y<16;y+=3) {
-    const ring = addMesh(
-      new THREE.TorusGeometry(1.25,.045,6,24),
-      metal,
-      14,y,-36
-    );
-
-    ring.rotation.x = Math.PI/2;
-  }
-
-  addMesh(
-    new THREE.SphereGeometry(.45,12,12),
-    new THREE.MeshBasicMaterial({color:0x9ad6d1}),
-    14,17,-36
-  );
-
-  addLight(14,17,-36,0x7bd4d4,2,15);
-
-  // Farol
-  addBox(-29,5,-65,7,10,7,concrete);
-  addBox(-29,10.2,-65,8,.5,8,dark);
-
-  addMesh(
-    new THREE.CylinderGeometry(2.1,2.1,2.2,12),
-    new THREE.MeshStandardMaterial({
-      color:0x273b40,
-      emissive:0x152d32
-    }),
-    -29,11.5,-65
-  );
-
-  const beaconLight = addLight(
-    -29,12,-65,
-    0x9cd8d2,
-    3,
-    55
-  );
-
-  for(let i=0;i<4;i++) {
-    addBox(
-      -29+(i%2?3.7:-3.7),
-      5,
-      -65+(i<2?3.7:-3.7),
-      .3,10,.3,
-      metal
-    );
-  }
-
-  // Cabana
-  addBox(20,1.5,-7,7,3,6,mat(0x3d4945));
-  addBox(20,3.1,-7,7.6,.35,6.6,dark);
-  addBox(20,1.4,-3.9,1.5,2.6,.12,metal);
-
-  // Gerador
-  addMesh(
-    new THREE.BoxGeometry(2,1.4,1.2),
-    metal,
-    -12,.8,-15
-  );
-
-  addLight(-12,1.6,-15,0x4bb9ae,.4,5);
-
-  // Repetidores
-  const repeaterPositions = [
-    [-17,1,-34],
-    [15,1,-43],
-    [2,1,-57]
-  ];
-
-  repeaterPositions.forEach((position,index)=>{
-    const group = new THREE.Group();
-    group.position.set(...position);
-    scene.add(group);
-
-    addMesh(
-      new THREE.CylinderGeometry(.15,.22,2.6,8),
-      metal,
-      0,1.3,0,
-      group
-    );
-
-    const panel = addMesh(
-      new THREE.BoxGeometry(1.4,.85,.15),
-      mat(0x253c3e),
-      0,2.1,0,
-      group
-    );
-
-    const lamp = addMesh(
-      new THREE.SphereGeometry(.17,10,10),
-      new THREE.MeshBasicMaterial({color:0x8a3b32}),
-      0,2.1,.13,
-      group
-    );
-
-    addInteractable(panel,`Repetidor ${index+1}`,()=>{
-      if(collected.has('rep'+index)) {
-        say('Este repetidor já está ativo.');
-        return;
-      }
-
-      collected.add('rep'+index);
-      repeaters++;
-
-      lamp.material.color.setHex(0x8de0bf);
-      addLight(
-        position[0],
-        3.1,
-        position[2],
-        0x5cd9b0,
-        1.2,
-        8
-      );
-
-      say(`Repetidor ${index+1} sincronizado. Sinal ${repeaters}/3.`);
-
-      if(repeaters===3) {
-        setObjective(3);
-        say('Os três sinais estão ativos. Algo respondeu do farol.');
-      }
-    });
-  });
-
-  // Documentos
-  const documentSpots = [
-    [-5,1,-26],
-    [22,1,-8],
-    [-25,1,-46],
-    [8,1,-63],
-    [0,1,-38]
-  ];
-
-  const documentTexts = [
-    [
-      'REGISTRO DE CAMPO 01',
-      'A maré trouxe uma gravação que não deveria existir. A voz é de Elisa. A data, onze anos atrás.'
-    ],
-    [
-      'ANOTAÇÃO DE HELENA',
-      'A Memória Residual não reproduz o passado. Ela tenta completá-lo. Não respondam às vozes.'
-    ],
-    [
-      'RELATÓRIO 07-B',
-      'A criatura aparece quando alguém altera a frequência. Ela segue o som, mas aprende os caminhos.'
-    ],
-    [
-      'CARTA NÃO ENVIADA',
-      'Se você chegou até aqui, Mara, não procure uma resposta que possa destruir você.'
-    ],
-    [
-      'FITA DE ELISA',
-      'Mara... se estiver ouvindo, não é a ilha falando. Sou eu. Ou o que restou da minha lembrança.'
-    ]
-  ];
-
-  documentSpots.forEach((position,index)=>{
-    const paper = addMesh(
-      new THREE.BoxGeometry(.55,.06,.42),
-      mat(0xc4bda0),
-      position[0],
-      position[1]+.55,
-      position[2]
-    );
-
-    paper.rotation.y = Math.random()*.5;
-
-    addLight(
-      position[0],
-      position[1]+.8,
-      position[2],
-      0x8ec9bf,
-      .25,
-      3
-    );
-
-    addInteractable(paper,documentTexts[index][0],()=>{
-      if(collected.has('doc'+index)) {
-        say('Você já leu este registro.');
-        return;
-      }
-
-      collected.add('doc'+index);
-      records++;
-
-      toast(
-        documentTexts[index][0],
-        documentTexts[index][1]
-      );
-
-      say('Registro armazenado.');
-    });
-  });
-
-  // Chave
-  const key = addMesh(
-    new THREE.TorusGeometry(.22,.055,8,18),
-    mat(0xc3a96b),
-    20,.9,-8
-  );
-
-  key.rotation.x = Math.PI/2;
-  addLight(20,1,-8,0xe2c27a,.4,4);
-
-  addInteractable(key,'Chave enferrujada',()=>{
-    if(!collected.has('key')) {
-      collected.add('key');
-      key.visible = false;
-      say('Chave do farol obtida.');
-      setObjective(4);
-    }
-  });
-
-  // Console do farol
-  const consoleMesh = addMesh(
-    new THREE.BoxGeometry(2.8,2.2,.2),
-    mat(0x263c3c),
-    -29,8,-60
-  );
-
-  addInteractable(consoleMesh,'Transmissor do farol',()=>{
-    if(repeaters<3) {
-      say('O transmissor não responde. Ative os três repetidores.');
-      return;
-    }
-
-    if(!collected.has('key')) {
-      say('A sala está trancada. Encontre a chave.');
-      return;
-    }
-
-    finishGame();
-  });
-
-  // Personagem
-  player = new THREE.Object3D();
-  player.position.set(0,0,30);
-  scene.add(player);
-
-  camera.position.set(0,1.65,0);
-  player.add(camera);
-  camera.rotation.order = 'YXZ';
-
-  // Lanterna
-  flashlight = new THREE.SpotLight(
-    0xd7f1e9,
-    3.8,
-    29,
-    Math.PI/7,
-    .35,
-    1.2
-  );
-
-  flashlight.position.set(.15,-.1,-.1);
-  flashlight.target.position.set(0,0,-1);
-
-  camera.add(flashlight);
-  camera.add(flashlight.target);
-
-  // Criatura
-  enemy = new THREE.Group();
-  scene.add(enemy);
-  enemy.visible = false;
-
-  addMesh(
-    new THREE.CapsuleGeometry(.55,1.7,5,8),
-    mat(0x080d0f),
-    0,1.6,0,
-    enemy
-  );
-
-  addMesh(
-    new THREE.SphereGeometry(.42,10,8),
-    mat(0x0a1012),
-    0,2.8,0,
-    enemy
-  );
-
-  const eyeMaterial = new THREE.MeshBasicMaterial({
-    color:0x9b2420
-  });
-
-  addMesh(
-    new THREE.SphereGeometry(.07,8,8),
-    eyeMaterial,
-    -.17,2.85,-.36,
-    enemy
-  );
-
-  addMesh(
-    new THREE.SphereGeometry(.07,8,8),
-    eyeMaterial,
-    .17,2.85,-.36,
-    enemy
-  );
-
-  enemy.scale.set(.9,1.1,.9);
-
-  // Luzes ambientais
-  for(let i=0;i<12;i++) {
-    const x = (Math.random()-.5)*90;
-    const z = -15-Math.random()*65;
-
-    addMesh(
-      new THREE.CylinderGeometry(.05,.08,4,5),
-      mat(0x263b36),
-      x,2,z
-    );
-
-    addLight(x,3.8,z,0x6da5a2,.28,9);
-  }
-}
-
-function nearestInteractable() {
-  let best = null;
-  let bestDistance = 3.2;
-
-  for(const item of interactables) {
-    if(!item.mesh.visible) continue;
-
-    const position = item.mesh.getWorldPosition(
-      new THREE.Vector3()
-    );
-
-    const distance = player.position.distanceTo(position);
-
-    if(distance<bestDistance) {
-      best = item;
-      bestDistance = distance;
-    }
-  }
-
-  return best;
-}
-
-function interact() {
-  if(!started || paused || ended) return;
-
-  const item = nearestInteractable();
-
-  if(item) {
-    item.action();
+  if (player.grounded) {
+    player.coyote = 0.12;
   } else {
-    say('Nada para interagir por aqui.',1300);
+    player.coyote = Math.max(0,player.coyote-dt);
   }
 }
 
-function toggleFlash() {
-  if(battery<=0) {
-    say('A bateria da lanterna acabou.');
-    return;
-  }
-
-  flashOn = !flashOn;
-  flashlight.visible = flashOn;
-
-  say(
-    flashOn ? 'Lanterna ligada.' : 'Lanterna desligada.',
-    1000
-  );
-}
-
-function finishGame() {
-  ended = true;
-  paused = true;
-
-  ui.hud.classList.add('hidden');
-  ui.mobile.classList.add('hidden');
-
-  let title = 'A MARÉ LEVA';
-  let text =
-    'A transmissão termina em estática. A ilha permanece em silêncio, guardando uma história incompleta.';
-
-  if(records>=4) {
-    title = 'A MEMÓRIA INTEIRA';
-    text =
-      'Mara ouve a última gravação. Elisa não voltou, mas sua voz finalmente encontra descanso. Ao amanhecer, a ilha parece apenas uma ilha.';
-  }
-
-  if(records>=5 && repeaters===3) {
-    title = 'O ÚLTIMO ECO';
-    text =
-      'Você altera a frequência antes de desligar o transmissor. Por um instante, todas as luzes da ilha acendem. Uma segunda voz responde — a sua, gravada muitos anos no futuro.';
-  }
-
-  $('endingTitle').textContent = title;
-  $('endingText').textContent = text;
-
-  ui.ending.classList.remove('hidden');
-}
-
-function startGame() {
-  ui.menu.classList.add('hidden');
-  ui.hud.classList.remove('hidden');
-
-  started = true;
-  paused = false;
-
-  if(isMobile) {
-    ui.mobile.classList.remove('hidden');
-  } else {
-    renderer.domElement.requestPointerLock?.();
-  }
-
-  setObjective(0);
-
-  say(
-    'A chuva apagou suas pegadas. A estação está adiante.',
-    4200
-  );
-}
-
-function pauseGame() {
-  if(!started || ended) return;
-
-  paused = !paused;
-  ui.pause.classList.toggle('hidden',!paused);
-
-  if(paused) {
-    document.exitPointerLock?.();
-  } else if(!isMobile) {
-    renderer.domElement.requestPointerLock?.();
-  }
-}
+// ==========================================
+// PARKOUR MOVEMENT
+// ==========================================
 
 function updatePlayer(dt) {
-  if(!started || paused || ended) return;
+  const direction =
+    (input.right ? 1 : 0) -
+    (input.left ? 1 : 0);
 
-  const forward = new THREE.Vector3(
-    -Math.sin(yaw),0,-Math.cos(yaw)
+  if (direction !== 0) {
+    player.facing = direction;
+  }
+
+  if (input.jumpPressed) {
+    player.jumpBuffer = 0.13;
+  } else {
+    player.jumpBuffer = Math.max(0,player.jumpBuffer-dt);
+  }
+
+  player.sliding = input.slide && player.grounded;
+
+  const acceleration = player.grounded ? 2400 : 1300;
+  const maxSpeed = player.sliding ? 510 : player.speed;
+
+  if (direction !== 0) {
+    player.vx += direction * acceleration * dt;
+  } else {
+    player.vx *= Math.pow(
+      player.grounded ? 0.0008 : 0.13,
+      dt
+    );
+  }
+
+  player.vx = Math.max(-maxSpeed,Math.min(maxSpeed,player.vx));
+
+  // Slide
+  if (player.sliding) {
+    player.vx += player.facing * 300 * dt;
+    player.vx = Math.max(-520,Math.min(520,player.vx));
+  }
+
+  // Jump and double jump
+  if (player.jumpBuffer > 0) {
+    if (player.grounded || player.coyote > 0) {
+      player.vy = -760;
+      player.grounded = false;
+      player.coyote = 0;
+      player.jumps = 1;
+      player.jumpBuffer = 0;
+      burst(player.x+player.w/2,player.y+player.h,12);
+    }
+    else if (player.wallSide !== 0) {
+      player.vy = -740;
+      player.vx = -player.wallSide * 490;
+      player.facing = -player.wallSide;
+      player.wallSide = 0;
+      player.jumpBuffer = 0;
+      burst(player.x+player.w/2,player.y+player.h/2,15);
+    }
+    else if (player.jumps < player.maxJumps) {
+      player.vy = -700;
+      player.jumps++;
+      player.jumpBuffer = 0;
+      burst(player.x+player.w/2,player.y+player.h/2,12);
+    }
+  }
+
+  // Variable jump height
+  if (!input.jump && player.vy < -180) {
+    player.vy += 1900*dt;
+  }
+
+  player.vy += world.gravity*dt;
+  player.vy = Math.min(player.vy,1050);
+
+  // Wall slide
+  if (!player.grounded && player.wallSide !== 0 &&
+      player.vy > 100 && direction === player.wallSide) {
+    player.vy = Math.min(player.vy,230);
+    player.state = "wallslide";
+  }
+
+  if (player.sliding) {
+    player.state = "slide";
+  } else if (!player.grounded) {
+    if (player.state !== "wallslide") {
+      player.state = player.vy < 0 ? "jump" : "fall";
+    }
+  } else if (Math.abs(player.vx)>25) {
+    player.state = "run";
+  } else {
+    player.state = "idle";
+  }
+
+  movePlayer(dt);
+
+  if (player.y > 900) respawn();
+
+  if (player.invulnerable > 0) {
+    player.invulnerable -= dt;
+  }
+
+  if (player.grounded && Math.abs(player.vx)>280) {
+    if (Math.random()<0.25) {
+      burst(player.x+player.w/2,player.y+player.h,1);
+    }
+  }
+
+  if (Math.abs(player.vx)>120 && game.time%0.07<dt) {
+    player.trail.push({
+      x:player.x+player.w/2,
+      y:player.y+player.h/2,
+      alpha:0.3
+    });
+  }
+
+  player.trail = player.trail.slice(-8);
+  player.animation += dt*Math.max(3,Math.abs(player.vx)/65);
+}
+
+// ==========================================
+// CRATE AND PUZZLE SYSTEM
+// ==========================================
+
+function updatePuzzle(dt) {
+  const c = world.crate;
+
+  c.vx *= Math.pow(0.02,dt);
+
+  const next = {
+    x:c.x+player.vx*dt,
+    y:c.y,
+    w:c.w,
+    h:c.h
+  };
+
+  if (overlap(player,next)) {
+    if (player.vx > 0) c.x = player.x+player.w;
+    if (player.vx < 0) c.x = player.x-c.w;
+    c.x = Math.max(0,Math.min(world.width-c.w,c.x));
+  }
+
+  c.y += world.gravity*dt;
+
+  for (const p of world.platforms) {
+    if (overlap(c,p) && c.y+c.h <= p.y+25) {
+      c.y = p.y-c.h;
+    }
+  }
+
+  c.y = Math.min(c.y,570);
+
+  world.plate.pressed =
+    overlap(c,world.plate) ||
+    overlap(player,world.plate);
+
+  world.door.open = world.plate.pressed;
+
+  if (world.plate.pressed) {
+    ui.objective.textContent = "Porta desbloqueada!";
+    ui.status.textContent = "PUZZLE RESOLVIDO";
+  } else {
+    ui.objective.textContent = "Ative o mecanismo";
+    ui.status.textContent = "PROCURANDO MECANISMO";
+  }
+
+  if (player.x > world.checkpoint.x-80 &&
+      !world.checkpoint.active) {
+    world.checkpoint.active = true;
+    game.checkpoint = 1;
+    ui.checkpoint.textContent = "02";
+    burst(world.checkpoint.x,560,35);
+  }
+
+  if (overlap(player,world.exit)) {
+    winGame();
+  }
+}
+
+// ==========================================
+// CHECKPOINTS
+// ==========================================
+
+function respawn() {
+  if (world.checkpoint.active) {
+    player.x = world.checkpoint.x;
+    player.y = 490;
+  } else {
+    player.x = spawn.x;
+    player.y = spawn.y;
+  }
+
+  player.vx = 0;
+  player.vy = 0;
+  player.invulnerable = 1;
+  game.shake = 10;
+}
+
+function winGame() {
+  if (game.won) return;
+
+  game.won = true;
+  game.running = false;
+  ui.win.classList.remove("hidden");
+}
+
+// ==========================================
+// PARTICLE ENGINE
+// ==========================================
+
+function burst(x,y,count) {
+  for (let i=0;i<count;i++) {
+    const angle = Math.random()*Math.PI*2;
+    const speed = 40+Math.random()*280;
+
+    game.particles.push({
+      x,y,
+      vx:Math.cos(angle)*speed,
+      vy:Math.sin(angle)*speed,
+      life:0.3+Math.random()*0.6,
+      maxLife:0.9,
+      size:2+Math.random()*4
+    });
+  }
+}
+
+function updateParticles(dt) {
+  for (const p of game.particles) {
+    p.x += p.vx*dt;
+    p.y += p.vy*dt;
+    p.vy += 300*dt;
+    p.life -= dt;
+  }
+
+  game.particles = game.particles.filter(p=>p.life>0);
+}
+
+// ==========================================
+// CAMERA
+// ==========================================
+
+function updateCamera(dt) {
+  const target = player.x-W*0.38;
+
+  game.camera +=
+    (target-game.camera)*(1-Math.exp(-5*dt));
+
+  game.camera = Math.max(
+    0,
+    Math.min(world.width-W,game.camera)
   );
 
-  const right = new THREE.Vector3(
-    Math.cos(yaw),0,-Math.sin(yaw)
+  if (game.shake>0) {
+    game.shake = Math.max(0,game.shake-30*dt);
+  }
+}
+
+// ==========================================
+// BACKGROUND
+// ==========================================
+
+function drawBackground() {
+  const gradient = ctx.createLinearGradient(0,0,0,H);
+  gradient.addColorStop(0,"#091727");
+  gradient.addColorStop(0.65,"#142638");
+  gradient.addColorStop(1,"#1a2936");
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0,0,W,H);
+
+  // Distant architecture
+  for (let i=0;i<18;i++) {
+    const x = i*190-(game.camera*0.18)%190;
+
+    const height = 160+(i*73%210);
+    ctx.fillStyle = i%2 ? "#122335" : "#172b3e";
+    ctx.fillRect(x,H-height,130,height);
+
+    ctx.fillStyle = "#31516a44";
+
+    for (let j=0;j<5;j++) {
+      ctx.fillRect(x+15+j*23,H-height+25,8,30);
+    }
+  }
+
+  // Large industrial pipes
+  ctx.fillStyle = "#203b50";
+  ctx.fillRect(0,145,W,9);
+  ctx.fillRect(0,160,W,3);
+
+  // Atmospheric lights
+  for (let i=0;i<8;i++) {
+    const x = (i*190-game.camera*0.35%W+W)%W;
+    const pulse = 0.5+Math.sin(game.time*2+i)*0.25;
+
+    ctx.fillStyle = `rgba(65,220,235,${pulse*0.12})`;
+    ctx.beginPath();
+    ctx.arc(x,260,100,0,Math.PI*2);
+    ctx.fill();
+  }
+
+  // Floating dust
+  for (let i=0;i<45;i++) {
+    const x = (i*173+game.time*12-game.camera*0.4)%W;
+    const y = (i*97+Math.sin(game.time+i)*20)%H;
+
+    ctx.fillStyle = "#b5e8ed55";
+    ctx.fillRect(x,y,2,2);
+  }
+}
+
+// ==========================================
+// ENVIRONMENT RENDERING
+// ==========================================
+
+function drawWorld() {
+  ctx.save();
+  ctx.translate(-game.camera,0);
+
+  // Floor and platforms
+  for (const p of world.platforms) {
+    ctx.fillStyle = "#243747";
+    ctx.fillRect(p.x,p.y,p.w,p.h);
+
+    ctx.fillStyle = "#587184";
+    ctx.fillRect(p.x,p.y,p.w,5);
+
+    ctx.fillStyle = "#162635";
+    ctx.fillRect(p.x,p.y+10,p.w,p.h-10);
+
+    for (let x=p.x+10;x<p.x+p.w;x+=45) {
+      ctx.fillStyle = "#536a7b55";
+      ctx.fillRect(x,p.y+15,2,p.h-20);
+    }
+  }
+
+  // Walls
+  for (const wall of world.walls) {
+    ctx.fillStyle = "#263a4c";
+    ctx.fillRect(wall.x,wall.y,wall.w,wall.h);
+    ctx.fillStyle = "#5a7587";
+    ctx.fillRect(wall.x,wall.y,4,wall.h);
+  }
+
+  drawCrate();
+  drawPuzzle();
+  drawCheckpoint();
+  drawExit();
+
+  ctx.restore();
+}
+
+function drawCrate() {
+  const c=world.crate;
+
+  ctx.fillStyle="#172a3c";
+  ctx.fillRect(c.x,c.y,c.w,c.h);
+
+  ctx.strokeStyle="#82a6b8";
+  ctx.lineWidth=3;
+  ctx.strokeRect(c.x+4,c.y+4,c.w-8,c.h-8);
+
+  ctx.strokeStyle="#54778b";
+  ctx.lineWidth=2;
+  ctx.beginPath();
+  ctx.moveTo(c.x+8,c.y+8);
+  ctx.lineTo(c.x+c.w-8,c.y+c.h-8);
+  ctx.moveTo(c.x+c.w-8,c.y+8);
+  ctx.lineTo(c.x+8,c.y+c.h-8);
+  ctx.stroke();
+}
+
+function drawPuzzle() {
+  const p=world.plate;
+
+  ctx.fillStyle=world.plate.pressed?"#56e6ed":"#536578";
+  ctx.fillRect(p.x,p.y,p.w,p.h);
+
+  ctx.shadowBlur=world.plate.pressed?25:0;
+  ctx.shadowColor="#56e6ed";
+  ctx.fillStyle=world.plate.pressed?"#b6ffff":"#293b4b";
+  ctx.fillRect(p.x+8,p.y+3,p.w-16,5);
+  ctx.shadowBlur=0;
+
+  const d=world.door;
+
+  if (!d.open) {
+    ctx.fillStyle="#17283b";
+    ctx.fillRect(d.x,d.y,d.w,d.h);
+
+    ctx.strokeStyle="#6d879c";
+    ctx.lineWidth=3;
+    ctx.strokeRect(d.x+4,d.y+4,d.w-8,d.h-8);
+
+    ctx.fillStyle="#56e6ed";
+    ctx.fillRect(d.x+12,d.y+20,10,3);
+  } else {
+    ctx.fillStyle="#56e6ed";
+    ctx.globalAlpha=.18;
+    ctx.fillRect(d.x,d.y,d.w,d.h);
+    ctx.globalAlpha=1;
+  }
+}
+
+function drawCheckpoint() {
+  const c=world.checkpoint;
+
+  ctx.fillStyle="#314d60";
+  ctx.fillRect(c.x,530,5,100);
+
+  ctx.fillStyle=c.active?"#56e6ed":"#61778a";
+  ctx.beginPath();
+  ctx.moveTo(c.x+5,532);
+  ctx.lineTo(c.x+65,550);
+  ctx.lineTo(c.x+5,570);
+  ctx.closePath();
+  ctx.fill();
+
+  if (c.active) {
+    ctx.shadowColor="#56e6ed";
+    ctx.shadowBlur=30;
+    ctx.fillStyle="#56e6ed";
+    ctx.fillRect(c.x-2,530,9,100);
+    ctx.shadowBlur=0;
+  }
+}
+
+function drawExit() {
+  const e=world.exit;
+
+  ctx.fillStyle="#142a3c";
+  ctx.fillRect(e.x,e.y,e.w,e.h);
+
+  ctx.strokeStyle="#56e6ed";
+  ctx.lineWidth=3;
+  ctx.strokeRect(e.x,e.y,e.w,e.h);
+
+  ctx.fillStyle="#56e6ed";
+  ctx.shadowColor="#56e6ed";
+  ctx.shadowBlur=20;
+  ctx.fillRect(e.x+24,e.y+15,6,100);
+  ctx.shadowBlur=0;
+}
+
+// ==========================================
+// CHARACTER ANIMATION
+// ==========================================
+
+function drawPlayer() {
+  const p=player;
+  const cx=p.x+p.w/2;
+  const cy=p.y;
+
+  // Motion trail
+  for (const t of p.trail) {
+    ctx.fillStyle=`rgba(86,230,237,${t.alpha})`;
+    ctx.fillRect(t.x-3,t.y-3,6,6);
+    t.alpha-=0.008;
+  }
+
+  ctx.save();
+  ctx.translate(cx,cy+p.h);
+  ctx.scale(p.facing,1);
+
+  const run=Math.sin(p.animation)*12;
+  const jumpPose=p.state==="jump"||p.state==="fall";
+  const slide=p.state==="slide";
+  const wall=p.state==="wallslide";
+
+  if (slide) {
+    ctx.translate(0,-13);
+    ctx.rotate(-.12);
+  }
+
+  if (p.invulnerable>0 && Math.floor(game.time*15)%2===0) {
+    ctx.globalAlpha=.35;
+  }
+
+  // Shadow
+  if (p.grounded) {
+    ctx.globalAlpha=.2;
+    ctx.fillStyle="#000";
+    ctx.beginPath();
+    ctx.ellipse(0,3,22,5,0,0,Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha=1;
+  }
+
+  // Legs
+  ctx.strokeStyle="#182f40";
+  ctx.lineWidth=9;
+  ctx.lineCap="round";
+
+  ctx.beginPath();
+
+  if (slide) {
+    ctx.moveTo(-5,-17);
+    ctx.lineTo(20,-5);
+    ctx.moveTo(4,-17);
+    ctx.lineTo(29,-4);
+  } else if (jumpPose) {
+    ctx.moveTo(-5,-30);
+    ctx.lineTo(-15,-14);
+    ctx.moveTo(5,-30);
+    ctx.lineTo(15,-12);
+  } else if (wall) {
+    ctx.moveTo(-5,-30);
+    ctx.lineTo(-14,-13);
+    ctx.moveTo(5,-30);
+    ctx.lineTo(13,-20);
+  } else {
+    ctx.moveTo(-5,-28);
+    ctx.lineTo(-7+run,-3);
+    ctx.moveTo(5,-28);
+    ctx.lineTo(7-run,-3);
+  }
+
+  ctx.stroke();
+
+  // Shoes
+  ctx.fillStyle="#56e6ed";
+  ctx.fillRect(-17,-5,14,5);
+  ctx.fillRect(5,-5,14,5);
+
+  // Body
+  ctx.fillStyle="#1a3448";
+  ctx.beginPath();
+  ctx.roundRect(-13,-68,26,43,7);
+  ctx.fill();
+
+  // Jacket detail
+  ctx.fillStyle="#56e6ed";
+  ctx.fillRect(-3,-65,5,33);
+
+  // Arms
+  ctx.strokeStyle="#28475b";
+  ctx.lineWidth=7;
+
+  ctx.beginPath();
+
+  if (jumpPose) {
+    ctx.moveTo(-11,-59);
+    ctx.lineTo(-22,-79);
+    ctx.moveTo(11,-59);
+    ctx.lineTo(23,-76);
+  } else if (slide) {
+    ctx.moveTo(-10,-51);
+    ctx.lineTo(-22,-43);
+    ctx.moveTo(10,-51);
+    ctx.lineTo(24,-41);
+  } else {
+    ctx.moveTo(-11,-58);
+    ctx.lineTo(-18+run*.6,-40);
+    ctx.moveTo(11,-58);
+    ctx.lineTo(18-run*.6,-40);
+  }
+
+  ctx.stroke();
+
+  // Neck and head
+  ctx.fillStyle="#a6c3d1";
+  ctx.fillRect(-5,-76,10,10);
+
+  ctx.fillStyle="#b9d0d9";
+  ctx.beginPath();
+  ctx.roundRect(-11,-95,22,22,7);
+  ctx.fill();
+
+  // Hair / hood
+  ctx.fillStyle="#142636";
+  ctx.beginPath();
+  ctx.roundRect(-12,-98,24,12,6);
+  ctx.fill();
+
+  // Visor
+  ctx.fillStyle="#56e6ed";
+  ctx.shadowColor="#56e6ed";
+  ctx.shadowBlur=12;
+  ctx.fillRect(1,-89,9,4);
+  ctx.shadowBlur=0;
+
+  ctx.restore();
+}
+
+// ==========================================
+// LIGHT AND PARTICLE RENDER
+// ==========================================
+
+function drawParticles() {
+  for (const p of game.particles) {
+    ctx.globalAlpha=Math.max(0,p.life/p.maxLife);
+    ctx.fillStyle="#79edf2";
+    ctx.shadowBlur=12;
+    ctx.shadowColor="#56e6ed";
+    ctx.fillRect(p.x,p.y,p.size,p.size);
+  }
+
+  ctx.globalAlpha=1;
+  ctx.shadowBlur=0;
+}
+
+// ==========================================
+// MAIN RENDER
+// ==========================================
+
+function render() {
+  ctx.clearRect(0,0,W,H);
+
+  drawBackground();
+
+  ctx.save();
+
+  if (game.shake>0) {
+    ctx.translate(
+      (Math.random()-.5)*game.shake,
+      (Math.random()-.5)*game.shake
+    );
+  }
+
+  drawWorld();
+  drawParticles();
+
+  ctx.save();
+  ctx.translate(-game.camera,0);
+  drawPlayer();
+  ctx.restore();
+
+  ctx.restore();
+
+  // Vignette
+  const vignette=ctx.createRadialGradient(
+    W/2,H/2,200,W/2,H/2,850
   );
 
-  const mx =
-    (keys.KeyD?1:0) -
-    (keys.KeyA?1:0) +
-    mobileMove.x;
+  vignette.addColorStop(0,"transparent");
+  vignette.addColorStop(1,"rgba(0,0,0,.48)");
 
-  const mz =
-    (keys.KeyW?1:0) -
-    (keys.KeyS?1:0) -
-    mobileMove.y;
+  ctx.fillStyle=vignette;
+  ctx.fillRect(0,0,W,H);
 
-  const moving = Math.abs(mx)+Math.abs(mz)>.05;
+  // Top scanline
+  ctx.fillStyle="#ffffff08";
+  for (let y=0;y<H;y+=5) {
+    ctx.fillRect(0,y,W,1);
+  }
+}
 
-  const direction = new THREE.Vector3()
-    .addScaledVector(right,mx)
-    .addScaledVector(forward,mz);
+// ==========================================
+// GAME LOOP
+// ==========================================
 
-  if(direction.lengthSq()>1) direction.normalize();
+function update(dt) {
+  game.time+=dt;
 
-  const running = keys.ShiftLeft || runningTouch;
-  const speed = running ? 6.5 : 4.2;
+  updatePlayer(dt);
+  updatePuzzle(dt);
+  updateParticles(dt);
+  updateCamera(dt);
+}
 
-  player.position.addScaledVector(direction,speed*dt);
-
-  player.position.x = THREE.MathUtils.clamp(
-    player.position.x,-69,69
+function loop(timestamp) {
+  const dt=Math.min(
+    (timestamp-game.lastTime)/1000 || 0,
+    0.033
   );
 
-  player.position.z = THREE.MathUtils.clamp(
-    player.position.z,-72,49
-  );
+  game.lastTime=timestamp;
 
-  velocityY -= 15*dt;
-  player.position.y += velocityY*dt;
-
-  if(player.position.y<0) {
-    player.position.y = 0;
-    velocityY = 0;
+  if (game.running && !game.paused) {
+    update(dt);
   }
 
-  camera.position.y =
-    1.62 +
-    (moving ? Math.sin(performance.now()*.012)*(running?.055:.025) : 0);
-
-  if(flashOn && battery>0) {
-    battery = Math.max(0,battery-dt*.22);
-
-    if(battery===0) {
-      flashlight.visible = false;
-      flashOn = false;
-      say('A lanterna apagou.');
-    }
-  } else if(!flashOn) {
-    battery = Math.min(100,battery+dt*.08);
-  }
-
-  ui.battery.style.width = battery+'%';
-  ui.batteryText.textContent = Math.floor(battery)+'%';
-
-  const near = nearestInteractable();
-
-  ui.interaction.classList.toggle('hidden',!near);
-
-  if(near) {
-    ui.interaction.textContent =
-      '[ E ] '+near.label.toUpperCase();
-  }
-
-  if(messageTimer>0) {
-    messageTimer -= dt;
-
-    if(messageTimer<=0) {
-      ui.message.classList.remove('show');
-    }
-  }
-
-  if(
-    objectiveIndex===0 &&
-    player.position.z < -17 &&
-    Math.abs(player.position.x)<17
-  ) {
-    setObjective(1);
-    say('A estação está abandonada. Procure por registros.',4000);
-  }
-
-  if(objectiveIndex===1 && records>=1) {
-    setObjective(2);
-    say('O diário menciona três repetidores espalhados pela ilha.',4000);
-  }
-
-  if(objectiveIndex===3 && collected.has('key')) {
-    setObjective(4);
-  }
+  render();
+  requestAnimationFrame(loop);
 }
 
-function updateEnemy(dt) {
-  if(!started || paused || ended) return;
+// ==========================================
+// MENUS
+// ==========================================
 
-  enemyTimer += dt;
+function togglePause() {
+  if (!game.running && !game.paused) return;
 
-  const distance = enemy.position.distanceTo(player.position);
-
-  // A criatura aparece depois de algum tempo
-  if(enemyState==='hidden' && enemyTimer>24) {
-    enemy.visible = true;
-
-    enemy.position.set(
-      player.position.x+18,
-      0,
-      player.position.z-22
-    );
-
-    enemyState = 'watch';
-    enemyTimer = 0;
-
-    say('Um ruído pesado ecoa entre as árvores...',3500);
-  }
-
-  if(enemyState==='watch') {
-    enemy.lookAt(
-      player.position.x,
-      1.5,
-      player.position.z
-    );
-
-    if(distance<16 || enemyTimer>16) {
-      enemyState = 'hunt';
-      enemyAlert = 0;
-    }
-  }
-
-  if(enemyState==='hunt') {
-    const target = player.position.clone();
-    target.y = 0;
-
-    const direction = target.sub(enemy.position);
-    const d = direction.length();
-
-    direction.normalize();
-
-    enemy.position.addScaledVector(
-      direction,
-      dt*(d<8?2.6:1.7)
-    );
-
-    enemy.lookAt(
-      player.position.x,
-      1.5,
-      player.position.z
-    );
-
-    enemyAlert += dt;
-
-    if(d<2) {
-      say('A presença toma o ar. CORRA!',1800);
-
-      player.position.add(
-        new THREE.Vector3(
-          (Math.random()-.5)*8,
-          0,
-          8
-        )
-      );
-
-      enemy.visible = false;
-      enemyState = 'hidden';
-      enemyTimer = 0;
-
-      battery = Math.max(10,battery-18);
-    }
-
-    if(enemyAlert>23 || d>38) {
-      enemy.visible = false;
-      enemyState = 'hidden';
-      enemyTimer = 0;
-    }
-  }
-
-  // Lanterna pode fazer a criatura recuar
-  if(flashOn && enemy.visible && distance<18) {
-    const toEnemy = enemy.position.clone()
-      .sub(camera.getWorldPosition(new THREE.Vector3()))
-      .normalize();
-
-    const direction = new THREE.Vector3();
-    camera.getWorldDirection(direction);
-
-    if(direction.dot(toEnemy)>.94) {
-      enemyAlert += dt*.8;
-
-      if(enemyAlert>5) {
-        enemy.visible = false;
-        enemyState = 'hidden';
-        enemyTimer = 0;
-
-        say('A luz fez a presença recuar.');
-      }
-    }
-  }
+  game.paused=!game.paused;
+  ui.pause.classList.toggle("hidden",!game.paused);
 }
 
-function animate() {
-  requestAnimationFrame(animate);
+ui.start.addEventListener("click",()=>{
+  resetGame();
+  game.running=true;
+  game.paused=false;
+  ui.intro.classList.add("hidden");
+  ui.pause.classList.add("hidden");
+});
 
-  const dt = Math.min(clock.getDelta(),.04);
+ui.pauseButton.addEventListener("click",togglePause);
 
-  if(started && !paused && !ended) {
-    updatePlayer(dt);
-    updateEnemy(dt);
-  }
+ui.resume.addEventListener("click",()=>{
+  game.paused=false;
+  ui.pause.classList.add("hidden");
+});
 
-  if(water) {
-    water.material.opacity =
-      .88+Math.sin(performance.now()*.0007)*.04;
-  }
+ui.restart.addEventListener("click",()=>{
+  resetGame();
+  game.running=true;
+  game.paused=false;
+  ui.pause.classList.add("hidden");
+});
 
-  renderer.render(scene,camera);
-}
+ui.again.addEventListener("click",()=>{
+  resetGame();
+  game.running=true;
+  ui.win.classList.add("hidden");
+});
 
-function setupControls() {
-  addEventListener('resize',()=>{
-    if(!camera) return;
+// ==========================================
+// START ENGINE
+// ==========================================
 
-    camera.aspect = innerWidth/innerHeight;
-    camera.updateProjectionMatrix();
-
-    renderer.setSize(innerWidth,innerHeight);
-  });
-
-  addEventListener('keydown',event=>{
-    keys[event.code] = true;
-
-    if(event.code==='KeyE') interact();
-    if(event.code==='KeyF') toggleFlash();
-
-    if(event.code==='Escape' && started && !isMobile) {
-      pauseGame();
-    }
-  });
-
-  addEventListener('keyup',event=>{
-    keys[event.code] = false;
-  });
-
-  addEventListener('mousemove',event=>{
-    if(
-      document.pointerLockElement===renderer.domElement &&
-      !paused
-    ) {
-      yaw -= event.movementX*.0022;
-      pitch -= event.movementY*.0018;
-
-      pitch = THREE.MathUtils.clamp(
-        pitch,-1.35,1.35
-      );
-
-      camera.rotation.set(pitch,yaw,0);
-    }
-  });
-
-  renderer.domElement.addEventListener('click',()=>{
-    if(
-      started &&
-      !paused &&
-      !isMobile &&
-      !document.pointerLockElement
-    ) {
-      renderer.domElement.requestPointerLock?.();
-    }
-  });
-
-  $('startBtn').onclick = startGame;
-  $('resumeBtn').onclick = pauseGame;
-  $('restartBtn').onclick = () => location.reload();
-  $('againBtn').onclick = () => location.reload();
-
-  if(isMobile) {
-    const joystick = $('joystick');
-    const stick = $('stick');
-
-    function updateJoystick(event) {
-      const rect = joystick.getBoundingClientRect();
-
-      const dx = event.clientX-(rect.left+rect.width/2);
-      const dy = event.clientY-(rect.top+rect.height/2);
-
-      const length = Math.hypot(dx,dy);
-      const scale = Math.min(1,45/(length||1));
-
-      mobileMove = {
-        x:dx*scale/45,
-        y:dy*scale/45
-      };
-
-      stick.style.transform =
-        `translate(${dx*scale}px,${dy*scale}px)`;
-    }
-
-    joystick.addEventListener('pointerdown',event=>{
-      joystick.setPointerCapture(event.pointerId);
-      updateJoystick(event);
-    });
-
-    joystick.addEventListener('pointermove',event=>{
-      if(event.buttons) updateJoystick(event);
-    });
-
-    joystick.addEventListener('pointerup',()=>{
-      mobileMove = {x:0,y:0};
-      stick.style.transform = 'translate(0,0)';
-    });
-
-    const lookZone = $('lookZone');
-
-    lookZone.addEventListener('pointerdown',event=>{
-      lookTouch = event.pointerId;
-
-      lastLook = {
-        x:event.clientX,
-        y:event.clientY
-      };
-
-      lookZone.setPointerCapture(event.pointerId);
-    });
-
-    lookZone.addEventListener('pointermove',event=>{
-      if(lookTouch!==event.pointerId) return;
-
-      const dx = event.clientX-lastLook.x;
-      const dy = event.clientY-lastLook.y;
-
-      lastLook = {
-        x:event.clientX,
-        y:event.clientY
-      };
-
-      yaw -= dx*.006;
-
-      pitch = THREE.MathUtils.clamp(
-        pitch-dy*.005,
-        -1.25,
-        1.25
-      );
-
-      camera.rotation.set(pitch,yaw,0);
-    });
-
-    lookZone.addEventListener('pointerup',()=>{
-      lookTouch = null;
-    });
-
-    $('runTouch').addEventListener('pointerdown',()=>{
-      runningTouch = true;
-    });
-
-    $('runTouch').addEventListener('pointerup',()=>{
-      runningTouch = false;
-    });
-
-    $('runTouch').addEventListener('pointercancel',()=>{
-      runningTouch = false;
-    });
-
-    $('interactTouch').onclick = interact;
-    $('flashTouch').onclick = toggleFlash;
-
-    $('hint').textContent =
-      'Joystick mover · Arraste a tela para olhar · E interagir · ☼ lanterna';
-  }
-}
-
-async function boot() {
-  try {
-    buildWorld();
-    setupControls();
-
-    for(let i=0;i<=100;i+=10) {
-      ui.loadBar.style.width = i+'%';
-
-      ui.loadText.textContent =
-        i<100 ? 'PREPARANDO A EXPEDIÇÃO...' : 'SINAL ESTÁVEL';
-
-      await new Promise(resolve=>setTimeout(resolve,65));
-    }
-
-    ui.loading.classList.add('hidden');
-    ui.menu.classList.remove('hidden');
-
-    animate();
-
-  } catch(error) {
-    console.error(error);
-    ui.loadText.textContent =
-      'ERRO AO INICIAR. RECARREGUE A PÁGINA.';
-  }
-}
-
-boot();
-
+resetGame();
+requestAnimationFrame(loop);
