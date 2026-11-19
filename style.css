@@ -1,65 +1,35 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap');
-
 * {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-:root {
-  --bg: #080d16;
-  --panel: #101a29;
-  --cyan: #56e6ed;
-  --white: #edf5ff;
-  --muted: #8392a7;
-}
-
 body {
+  background: #080d16;
+  color: #edf5ff;
+  font-family: Arial, sans-serif;
   min-height: 100vh;
-  background:
-    radial-gradient(ellipse at 50% 0%, #172b43, transparent 65%),
-    var(--bg);
-  color: var(--white);
-  font-family: Inter, sans-serif;
   display: grid;
   place-items: center;
   padding: 12px;
 }
 
 #game-shell {
-  width: min(1200px, 100%);
+  width: min(1200px,100%);
   overflow: hidden;
   border: 1px solid #26374b;
-  border-radius: 15px;
-  background: #080d16;
-  box-shadow: 0 30px 100px #0009;
+  border-radius: 12px;
+  background: #0b1420;
 }
 
-.topbar {
-  height: 76px;
+header {
+  height: 70px;
+  padding: 0 20px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  padding: 0 25px;
-  background: #0d1522;
-  border-bottom: 1px solid #26374b;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.logo {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--cyan);
-  color: var(--cyan);
-  font: 800 27px 'Barlow Condensed';
+  background: #101a29;
 }
 
 .brand strong, .brand small {
@@ -67,56 +37,51 @@ body {
 }
 
 .brand strong {
-  font: 800 21px 'Barlow Condensed';
+  font-size: 20px;
   letter-spacing: 2px;
 }
 
 .brand small {
-  color: var(--muted);
   font-size: 9px;
+  color: #56e6ed;
+  margin-top: 4px;
   letter-spacing: 2px;
-  margin-top: 3px;
 }
 
 .mission {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
   text-align: right;
-  font-size: 10px;
-  letter-spacing: 1px;
+  font-size: 11px;
 }
 
 .mission span {
-  color: var(--cyan);
-  font-weight: 800;
+  color: #56e6ed;
+  display: block;
+  margin-bottom: 4px;
 }
 
 .mission small {
-  color: var(--muted);
+  color: #9baec2;
 }
 
 button {
-  font: inherit;
   cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
+  border: 1px solid #456178;
+  color: white;
+  background: #172b40;
+  border-radius: 7px;
+  padding: 12px;
+  font-weight: bold;
 }
 
-#pause-button {
-  width: 40px;
-  height: 40px;
-  color: white;
-  background: #19283a;
-  border: 1px solid #34465c;
-  border-radius: 7px;
-  font-size: 18px;
+#pause {
+  width: 42px;
+  height: 42px;
 }
 
 #game-container {
   position: relative;
   width: 100%;
   overflow: hidden;
-  background: #080f1a;
 }
 
 canvas {
@@ -127,213 +92,123 @@ canvas {
   touch-action: none;
 }
 
-.overlay {
+#hud {
   position: absolute;
-  inset: 0;
-  z-index: 5;
-  display: grid;
-  place-items: center;
-  background: linear-gradient(90deg, #050b13ed, #07111acc);
-  text-align: center;
+  top: 14px;
+  left: 15px;
+  right: 15px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: bold;
+  letter-spacing: 1px;
+  pointer-events: none;
+}
+
+#hud span {
+  background: #07101cbb;
+  padding: 9px 12px;
+  border: 1px solid #40536a66;
+  border-radius: 5px;
+}
+
+#status {
+  color: #56e6ed;
 }
 
 .hidden {
   display: none !important;
 }
 
-.intro-content {
-  width: min(90%, 550px);
-}
-
-.eyebrow {
-  color: var(--cyan);
-  font-size: 10px;
-  letter-spacing: 4px;
-  font-weight: 800;
-}
-
-.intro-content h1 {
-  font: 900 clamp(65px, 12vw, 125px)/.77 'Barlow Condensed';
-  letter-spacing: 4px;
-  margin: 25px 0;
-}
-
-.intro-content h1 span {
-  color: var(--cyan);
-  text-shadow: 0 0 35px #56e6ed66;
-}
-
-.intro-content p {
-  color: #9cacc0;
-  font-size: 13px;
-  margin-bottom: 27px;
-}
-
-.intro-content button,
-.menu-card button {
-  background: var(--cyan);
-  color: #06101b;
-  border: 0;
-  padding: 16px 25px;
-  font-size: 11px;
-  font-weight: 900;
-  letter-spacing: 2px;
-  transition: .2s;
-}
-
-.intro-content button:hover,
-.menu-card button:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 30px #56e6ed44;
-}
-
-.intro-content button span {
-  margin-left: 12px;
-  font-size: 17px;
-}
-
-.intro-content small {
-  display: block;
-  margin-top: 25px;
-  color: #71849b;
-  font-size: 9px;
-  letter-spacing: 2px;
-}
-
-.menu-card {
-  width: min(90%, 390px);
-  padding: 35px;
-  background: #0b1523ee;
-  border: 1px solid #34475e;
-  border-radius: 10px;
+#message, #pause-screen {
+  position: absolute;
+  inset: 0;
+  background: #07111aee;
+  z-index: 10;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
 }
 
-.menu-card h2 {
-  font: 800 43px 'Barlow Condensed';
-  letter-spacing: 2px;
+#message h1, #pause-screen h1 {
+  font-size: clamp(26px,5vw,50px);
+  color: #56e6ed;
 }
 
-.menu-card p {
-  font-size: 12px;
-  color: var(--muted);
+#message p {
+  color: #9baec2;
 }
 
-.menu-card button {
-  width: 100%;
+#message button, #pause-screen button {
+  min-width: 170px;
+  background: #56e6ed;
+  color: #07111a;
+  border: 0;
 }
 
-.menu-card .secondary {
-  color: #d9e8f7;
-  background: #1b2b40;
-  border: 1px solid #34475e;
-}
-
-#hud {
-  position: absolute;
-  top: 16px;
-  left: 17px;
-  right: 17px;
-  display: flex;
-  justify-content: space-between;
-  pointer-events: none;
-}
-
-.hud-chip {
-  padding: 9px 12px;
-  background: #07101cbb;
-  border: 1px solid #40536a66;
-  border-radius: 5px;
-  color: #d9e8f7;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 1px;
-}
-
-.status-dot {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  background: var(--cyan);
-  border-radius: 50%;
-  margin-right: 6px;
-  box-shadow: 0 0 10px var(--cyan);
-}
-
-#touch-controls {
-  position: absolute;
-  inset: auto 18px 18px;
+#controls {
   display: none;
+  position: absolute;
+  bottom: 15px;
+  left: 15px;
+  right: 15px;
   justify-content: space-between;
-  align-items: end;
   pointer-events: none;
 }
 
-.touch-left, .touch-right {
+.left-controls, .right-controls {
   display: flex;
   gap: 9px;
   pointer-events: auto;
 }
 
-#touch-controls button {
-  width: 49px;
-  height: 49px;
-  border-radius: 12px;
-  border: 1px solid #9ceff277;
-  background: #101e30dd;
-  color: white;
-  font-size: 22px;
-  font-weight: 800;
+#controls button {
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  background: #102b40dd;
+  border: 1px solid #56e6ed88;
+  font-size: 21px;
   touch-action: none;
   user-select: none;
 }
 
-#touch-controls button:active {
+#controls button:active {
   background: #56e6ed88;
 }
 
 footer {
-  height: 36px;
-  padding: 0 18px;
+  height: 35px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #66778d;
-  font-size: 8px;
-  letter-spacing: 1px;
+  padding: 0 15px;
+  font-size: 9px;
+  color: #71849b;
 }
 
-@media (pointer: coarse), (max-width: 700px) {
+@media (pointer:coarse), (max-width:700px) {
   body {
     padding: 0;
   }
 
   #game-shell {
     border-radius: 0;
-    width: 100%;
   }
 
-  .topbar {
-    height: 60px;
-    padding: 0 12px;
+  header {
+    height: 58px;
+    padding: 0 10px;
   }
 
   .mission {
     display: none;
   }
 
-  #touch-controls {
+  #controls {
     display: flex;
-  }
-
-  #touch-controls button {
-    width: clamp(38px, 9vw, 49px);
-    height: clamp(38px, 9vw, 49px);
-  }
-
-  footer {
-    font-size: 7px;
   }
 }
