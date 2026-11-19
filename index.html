@@ -2,93 +2,64 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#080d16">
-  <title>PROJECT: ECHO</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>PROJECT ECHO</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main id="game-shell">
-    <header class="topbar">
-      <div class="brand">
-        <div class="logo">E</div>
-        <div>
-          <strong>PROJECT: ECHO</strong>
-          <small>THE FORGOTTEN FACILITY</small>
-        </div>
+
+<div id="game-shell">
+  <header>
+    <div class="brand">
+      <strong>PROJECT: ECHO</strong>
+      <small>THE FORGOTTEN FACILITY</small>
+    </div>
+    <div class="mission">
+      <span>CHAPTER 01</span>
+      <small id="objective">Explore a instalação</small>
+    </div>
+    <button id="pause">Ⅱ</button>
+  </header>
+
+  <main id="game-container">
+    <canvas id="game"></canvas>
+
+    <div id="hud">
+      <span id="status">EXPLORANDO</span>
+      <span>CHECKPOINT <b id="checkpoint">01</b></span>
+    </div>
+
+    <div id="message" class="hidden">
+      <h1>FASE CONCLUÍDA</h1>
+      <p>Você escapou da instalação.</p>
+      <button id="again">RECOMEÇAR</button>
+    </div>
+
+    <div id="pause-screen" class="hidden">
+      <h1>PAUSADO</h1>
+      <button id="resume">CONTINUAR</button>
+      <button id="restart">REINICIAR</button>
+    </div>
+
+    <div id="controls">
+      <div class="left-controls">
+        <button data-key="left">◀</button>
+        <button data-key="right">▶</button>
       </div>
-
-      <div class="mission">
-        <span>CHAPTER 01</span>
-        <small id="objective">Encontre a saída</small>
+      <div class="right-controls">
+        <button data-key="slide">▼</button>
+        <button data-key="jump">▲</button>
       </div>
-
-      <button id="pause-button" aria-label="Pausar">Ⅱ</button>
-    </header>
-
-    <section id="game-container">
-      <canvas id="game"></canvas>
-
-      <div id="intro-screen" class="overlay">
-        <div class="intro-content">
-          <span class="eyebrow">A JOURNEY THROUGH THE UNKNOWN</span>
-          <h1>PROJECT<br><span>ECHO</span></h1>
-          <p>Nem toda porta foi feita para ser aberta.</p>
-          <button id="start-button">INICIAR EXPERIÊNCIA <span>→</span></button>
-          <small>WASD / SETAS PARA MOVIMENTAR</small>
-        </div>
-      </div>
-
-      <div id="pause-screen" class="overlay hidden">
-        <div class="menu-card">
-          <span class="eyebrow">SYSTEM PAUSED</span>
-          <h2>PAUSADO</h2>
-          <button id="resume-button">CONTINUAR</button>
-          <button id="restart-button">REINICIAR FASE</button>
-          <button id="menu-button" class="secondary">MENU PRINCIPAL</button>
-        </div>
-      </div>
-
-      <div id="win-screen" class="overlay hidden">
-        <div class="menu-card">
-          <span class="eyebrow">MISSION COMPLETE</span>
-          <h2>VOCÊ CONSEGUIU.</h2>
-          <p>Você escapou da instalação.</p>
-          <button id="again-button">JOGAR NOVAMENTE</button>
-          <button id="win-menu-button" class="secondary">MENU PRINCIPAL</button>
-        </div>
-      </div>
-
-      <div id="hud" class="hidden">
-        <div class="hud-chip">
-          <span class="status-dot"></span>
-          <span id="hud-status">EXPLORANDO</span>
-        </div>
-        <div class="hud-chip">
-          CHECKPOINT <span id="checkpoint-number">01</span>
-        </div>
-      </div>
-
-      <div id="touch-controls">
-        <div class="touch-left">
-          <button data-control="left">←</button>
-          <button data-control="right">→</button>
-        </div>
-        <div class="touch-right">
-          <button data-control="slide">↓</button>
-          <button data-control="jump">↑</button>
-          <button data-control="interact">E</button>
-        </div>
-      </div>
-    </section>
-
-    <footer>
-      <span>PROJECT: ECHO © 2026</span>
-      <span>BUILD 1.0.0</span>
-    </footer>
+    </div>
   </main>
 
-  <script src="script.js"></script>
+  <footer>
+    <span>PROJECT ECHO</span>
+    <span>BUILD 1.1</span>
+  </footer>
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>
