@@ -9,24 +9,26 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="game-shell">
-    <header id="topbar">
+  <main id="game-shell">
+    <header class="topbar">
       <div class="brand">
-        <span class="brand-mark">E</span>
+        <div class="logo">E</div>
         <div>
           <strong>PROJECT: ECHO</strong>
           <small>THE FORGOTTEN FACILITY</small>
         </div>
       </div>
-      <div class="level-info">
+
+      <div class="mission">
         <span>CHAPTER 01</span>
-        <span id="objective">Encontre a saída</span>
+        <small id="objective">Encontre a saída</small>
       </div>
-      <button id="pause-button">Ⅱ</button>
+
+      <button id="pause-button" aria-label="Pausar">Ⅱ</button>
     </header>
 
-    <main id="game-container">
-      <canvas id="game" aria-label="Jogo de plataforma PROJECT ECHO"></canvas>
+    <section id="game-container">
+      <canvas id="game"></canvas>
 
       <div id="intro-screen" class="overlay">
         <div class="intro-content">
@@ -44,6 +46,7 @@
           <h2>PAUSADO</h2>
           <button id="resume-button">CONTINUAR</button>
           <button id="restart-button">REINICIAR FASE</button>
+          <button id="menu-button" class="secondary">MENU PRINCIPAL</button>
         </div>
       </div>
 
@@ -51,17 +54,20 @@
         <div class="menu-card">
           <span class="eyebrow">MISSION COMPLETE</span>
           <h2>VOCÊ CONSEGUIU.</h2>
-          <p>A instalação não guarda mais seus segredos.</p>
+          <p>Você escapou da instalação.</p>
           <button id="again-button">JOGAR NOVAMENTE</button>
+          <button id="win-menu-button" class="secondary">MENU PRINCIPAL</button>
         </div>
       </div>
 
-      <div id="hud">
+      <div id="hud" class="hidden">
         <div class="hud-chip">
           <span class="status-dot"></span>
           <span id="hud-status">EXPLORANDO</span>
         </div>
-        <div class="hud-chip">CHECKPOINT <span id="checkpoint-number">01</span></div>
+        <div class="hud-chip">
+          CHECKPOINT <span id="checkpoint-number">01</span>
+        </div>
       </div>
 
       <div id="touch-controls">
@@ -75,12 +81,14 @@
           <button data-control="interact">E</button>
         </div>
       </div>
-    </main>
+    </section>
+
     <footer>
       <span>PROJECT: ECHO © 2026</span>
-      <span>BUILD 0.1.0 · EXPERIMENTAL</span>
+      <span>BUILD 1.0.0</span>
     </footer>
-  </div>
+  </main>
+
   <script src="script.js"></script>
 </body>
 </html>
