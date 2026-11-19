@@ -24,19 +24,19 @@ body {
   font-family: Inter, sans-serif;
   display: grid;
   place-items: center;
-  padding: 16px;
+  padding: 12px;
 }
 
 #game-shell {
   width: min(1200px, 100%);
+  overflow: hidden;
   border: 1px solid #26374b;
   border-radius: 15px;
-  overflow: hidden;
   background: #080d16;
   box-shadow: 0 30px 100px #0009;
 }
 
-#topbar {
+.topbar {
   height: 76px;
   display: flex;
   justify-content: space-between;
@@ -52,16 +52,14 @@ body {
   gap: 12px;
 }
 
-.brand-mark {
-  width: 39px;
-  height: 39px;
+.logo {
+  width: 40px;
+  height: 40px;
   display: grid;
   place-items: center;
   border: 1px solid var(--cyan);
   color: var(--cyan);
-  font-family: 'Barlow Condensed';
-  font-size: 27px;
-  font-weight: 800;
+  font: 800 27px 'Barlow Condensed';
 }
 
 .brand strong, .brand small {
@@ -69,8 +67,7 @@ body {
 }
 
 .brand strong {
-  font-family: 'Barlow Condensed';
-  font-size: 21px;
+  font: 800 21px 'Barlow Condensed';
   letter-spacing: 2px;
 }
 
@@ -81,7 +78,7 @@ body {
   margin-top: 3px;
 }
 
-.level-info {
+.mission {
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -90,27 +87,28 @@ body {
   letter-spacing: 1px;
 }
 
-.level-info span:first-child {
+.mission span {
   color: var(--cyan);
   font-weight: 800;
 }
 
-.level-info span:last-child {
+.mission small {
   color: var(--muted);
 }
 
 button {
   font: inherit;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 #pause-button {
-  background: #19283a;
+  width: 40px;
+  height: 40px;
   color: white;
+  background: #19283a;
   border: 1px solid #34465c;
   border-radius: 7px;
-  width: 39px;
-  height: 39px;
   font-size: 18px;
 }
 
@@ -124,39 +122,9 @@ button {
 canvas {
   display: block;
   width: 100%;
+  height: auto;
   aspect-ratio: 16 / 9;
   touch-action: none;
-}
-
-#hud {
-  position: absolute;
-  top: 16px;
-  left: 17px;
-  right: 17px;
-  display: flex;
-  justify-content: space-between;
-  pointer-events: none;
-}
-
-.hud-chip {
-  padding: 9px 12px;
-  background: #07101cbb;
-  border: 1px solid #40536a66;
-  border-radius: 5px;
-  color: #d9e8f7;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 1px;
-}
-
-.status-dot {
-  display: inline-block;
-  width: 7px;
-  height: 7px;
-  background: var(--cyan);
-  border-radius: 50%;
-  margin-right: 6px;
-  box-shadow: 0 0 10px var(--cyan);
 }
 
 .overlay {
@@ -165,7 +133,7 @@ canvas {
   z-index: 5;
   display: grid;
   place-items: center;
-  background: linear-gradient(90deg, #050b13e8, #07111ac9);
+  background: linear-gradient(90deg, #050b13ed, #07111acc);
   text-align: center;
 }
 
@@ -185,12 +153,9 @@ canvas {
 }
 
 .intro-content h1 {
-  font-family: 'Barlow Condensed';
-  font-size: clamp(65px, 12vw, 125px);
-  line-height: .77;
+  font: 900 clamp(65px, 12vw, 125px)/.77 'Barlow Condensed';
   letter-spacing: 4px;
   margin: 25px 0;
-  font-weight: 900;
 }
 
 .intro-content h1 span {
@@ -230,9 +195,9 @@ canvas {
 .intro-content small {
   display: block;
   margin-top: 25px;
+  color: #71849b;
   font-size: 9px;
   letter-spacing: 2px;
-  color: #71849b;
 }
 
 .menu-card {
@@ -247,8 +212,7 @@ canvas {
 }
 
 .menu-card h2 {
-  font-family: 'Barlow Condensed';
-  font-size: 43px;
+  font: 800 43px 'Barlow Condensed';
   letter-spacing: 2px;
 }
 
@@ -259,6 +223,43 @@ canvas {
 
 .menu-card button {
   width: 100%;
+}
+
+.menu-card .secondary {
+  color: #d9e8f7;
+  background: #1b2b40;
+  border: 1px solid #34475e;
+}
+
+#hud {
+  position: absolute;
+  top: 16px;
+  left: 17px;
+  right: 17px;
+  display: flex;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.hud-chip {
+  padding: 9px 12px;
+  background: #07101cbb;
+  border: 1px solid #40536a66;
+  border-radius: 5px;
+  color: #d9e8f7;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  background: var(--cyan);
+  border-radius: 50%;
+  margin-right: 6px;
+  box-shadow: 0 0 10px var(--cyan);
 }
 
 #touch-controls {
@@ -281,7 +282,7 @@ canvas {
   height: 49px;
   border-radius: 12px;
   border: 1px solid #9ceff277;
-  background: #101e30bb;
+  background: #101e30dd;
   color: white;
   font-size: 22px;
   font-weight: 800;
@@ -305,17 +306,31 @@ footer {
 }
 
 @media (pointer: coarse), (max-width: 700px) {
-  #touch-controls {
-    display: flex;
+  body {
+    padding: 0;
   }
 
-  #topbar {
+  #game-shell {
+    border-radius: 0;
+    width: 100%;
+  }
+
+  .topbar {
     height: 60px;
     padding: 0 12px;
   }
 
-  .level-info {
+  .mission {
     display: none;
+  }
+
+  #touch-controls {
+    display: flex;
+  }
+
+  #touch-controls button {
+    width: clamp(38px, 9vw, 49px);
+    height: clamp(38px, 9vw, 49px);
   }
 
   footer {
